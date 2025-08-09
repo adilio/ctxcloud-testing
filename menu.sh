@@ -5,6 +5,10 @@ set -euo pipefail
 # ---------- Defaults ----------
 export TF_VAR_region="${TF_VAR_region:-us-east-1}"
 export TF_VAR_owner="${TF_VAR_owner:-aleghari}"
+
+# Ensure they are exported for subshells and preserved in TUI
+[ -z "${TF_VAR_region}" ] && export TF_VAR_region="us-east-1"
+[ -z "${TF_VAR_owner}" ] && export TF_VAR_owner="aleghari"
 export TF_VAR_allow_ssh_cidr="${TF_VAR_allow_ssh_cidr:-}"   # TUI may set this
 LOG_DIR="${LOG_DIR:-logs}"
 SESSION_SSH_CIDR="${SESSION_SSH_CIDR:-}"                    # cached after first prompt
@@ -31,11 +35,55 @@ banner() {
 
 status() { green; echo "✅ $1"; r; }
 warn() { yellow; echo "⚠️  $1"; r; }
-error() { red; echo "❌ $1"; r; exit 1; }
+error() {
+  red; echo "❌ $1"; r;
+  echo
+  info "💡 Troubleshooting Tips:"
+  case "$1" in
+    *"Terraform not installed"*)
+      info "  • Download from: https://developer.hashicorp.com/terraform/downloads"
+      info "  • On macOS: brew install terraform"
+      info "  • Verify installation: terraform --version"
+      ;;
+    *"AWS CLI not installed"*)
+      info "  • Download from: https://aws.amazon.com/cli/"
+      info "  • On macOS: brew install awscli"
+      info "  • Verify installation: aws --version"
+      ;;
+    *"AWS credentials invalid"*)
+      info "  • Run: aws configure"
+      info "  • Ensure you have programmatic access keys"
+      info "  • Test with: aws sts get-caller-identity"
+      info "  • Check region availability: aws ec2 describe-regions"
+      ;;
+    *"No executable teardown.sh"*)
+      info "  • Check if the file exists: ls -la $2/teardown.sh"
+      info "  • Make executable: chmod +x $2/teardown.sh"
+      info "  • Or use the .sh permissions prompt at startup"
+      ;;
+    *)
+      info "  • Check the logs directory for detailed error information"
+      info "  • Ensure you're running in the correct directory"
+      info "  • Verify AWS permissions for EC2, IAM, and S3 operations"
+      ;;
+  esac
+  echo
+  exit 1
+}
 info() { blue; echo "ℹ️  $1"; r; }
 
 # ---------- Preflight checks ----------
 run_checks() {
+  # Prompt to ensure all .sh scripts are executable
+  read -r -p "Ensure all .sh scripts in repo are executable? [Y/n]: " ensure_exec
+  ensure_exec="${ensure_exec:-Y}"
+  if [[ "${ensure_exec,,}" =~ ^(y|yes)$ ]]; then
+    find . -type f -name "*.sh" -exec chmod +x {} \;
+    status "All .sh scripts have been made executable."
+  else
+    warn "Skipping chmod for .sh scripts."
+  fi
+
   if [ -f "./lib/checks.sh" ]; then
     # shellcheck disable=SC1091
     source "./lib/checks.sh"
@@ -94,7 +142,8 @@ prompt_for_ssh_cidr() {
   local detected="" choice="" custom=""
   if detected="$(detect_public_ip)"; then
     info "Detected public IP: $detected"
-    read -r -p "Use $(yellow "$detected/32") for SSH? [$(green Y)es/$(red n)o/$(cyan c)ustom/$(magenta s)kip] " choice
+    echo "Use $detected/32 for SSH? [Y]es/[N]o/[C]ustom/[S]kip"
+    read -r -p "Choice: " choice
   else
     warn "Could not detect your public IP automatically."
     read -r -p "Enter custom CIDR (e.g., 198.51.100.42/32), or press Enter to skip: " custom
@@ -143,7 +192,23 @@ scenarios_list() {
 }
 
 get_scenario_names() {
-  find . -mindepth 2 -maxdepth 2 -type f -name deploy.sh | xargs -n1 dirname | awk -F/ '{print $2}' | sort -u
+  find . -mindepth 2 -maxdepth 2 -type f -name deploy.sh | xargs -n1 dirname | awk -F/ '{print $2}' | sort | awk '
+    BEGIN {
+      order[1] = "iam-user-risk"
+      order[2] = "dspm-data-generator"
+      order[3] = "linux-misconfig-web"
+      order[4] = "windows-vuln-iis"
+      order[5] = "docker-container-host"
+    }
+    {
+      found[$0] = 1
+    }
+    END {
+      for (i = 1; i <= 5; i++) {
+        if (order[i] in found) print order[i]
+      }
+    }
+  '
 }
 
 require_scenarios() {
@@ -193,8 +258,10 @@ run_teardown() {
   banner "🗑️ Tearing Down: $scenario"
   local logf; logf="$(logfile_for "$scenario" teardown)"
   info "Logging to $logf"
-  if [ ! -x "$scenario/teardown.sh" ]; then
-    error "No executable teardown.sh found in $scenario"
+  if [ ! -f "$scenario/teardown.sh" ]; then
+    error "teardown.sh not found in $scenario" "$scenario"
+  elif [ ! -x "$scenario/teardown.sh" ]; then
+    error "teardown.sh is not executable in $scenario" "$scenario"
   fi
   pushd "$scenario" >/dev/null
   ./teardown.sh | tee -a "../$logf"
@@ -230,14 +297,104 @@ run_noninteractive() {
 }
 
 # ---------- Interactive ----------
+show_scenario_descriptions() {
+  echo
+  info "📋 Available Scenarios (select by number):"
+  echo
+  
+  local i=1
+  for scenario in "${SCENARIOS[@]}"; do
+    local desc="Description not available"
+    local purpose="Purpose not specified"
+    local duration="~5-10 min"
+    local cost="$0.50-2.00/hour"
+    
+    case "$scenario" in
+      "iam-user-risk")
+        desc="IAM User Risk Baseline (CIEM)"
+        purpose="Create IAM user with risky configurations: no MFA, multiple access keys, overly broad permissions"
+        duration="~2-3 min"
+        cost="~$0.10/hour"
+        ;;
+      "dspm-data-generator")
+        desc="Sensitive Data Generation (DSPM)"
+        purpose="Generate synthetic PII, PCI, PHI, and secrets data for data security testing"
+        duration="~3-5 min"
+        cost="~$0.50/hour"
+        ;;
+      "linux-misconfig-web")
+        desc="Linux Web Workload Misconfigurations (CSPM/CDR)"
+        purpose="Deploy misconfigured Linux EC2: public access, IMDSv1, unencrypted EBS, outdated OS"
+        duration="~5-7 min"
+        cost="~$1.00/hour"
+        ;;
+      "windows-vuln-iis")
+        desc="Windows IIS Server Vulnerabilities (CSPM/CDR)"
+        purpose="Deploy Windows Server with IIS: public RDP, IMDSv1, unencrypted EBS, web vulnerabilities"
+        duration="~8-12 min"
+        cost="~$2.00/hour"
+        ;;
+      "docker-container-host")
+        desc="Container & Host Exploitation (CWPP/CSPM)"
+        purpose="Deploy risky containerized workload: root container, host mounts, network exposure"
+        duration="~6-8 min"
+        cost="~$1.50/hour"
+        ;;
+    esac
+    
+    printf "$(cyan "$i.")") $(yellow "$scenario")\n"
+    printf "   $(green "→") $desc\n"
+    printf "   $(blue "Purpose:") $purpose\n"
+    printf "   $(magenta "Duration:") $duration  $(magenta "Est. Cost:") $cost\n"
+    echo
+    ((i++))
+  done
+  
+  printf "$(cyan "$i.")") $(red "Exit")\n"
+  echo
+  warn "⚠️  These scenarios deploy intentionally vulnerable infrastructure. Use only in non-production AWS accounts."
+  echo
+}
+
 interactive_menu() {
   require_scenarios
+  # Always ensure defaults for TUI display - force override if blank
+  if [ -z "$TF_VAR_owner" ]; then
+    TF_VAR_owner="aleghari"
+    export TF_VAR_owner
+  fi
+  if [ -z "$TF_VAR_region" ]; then
+    TF_VAR_region="us-east-1"
+    export TF_VAR_region
+  fi
+
+  # Enhanced welcome screen
   echo
-  banner "☁️ Cortex Cloud CNAPP Lab ☁️"
-  info "Owner: $(yellow "$TF_VAR_owner")   Region: $(yellow "$TF_VAR_region")"
-  [ -n "${TF_VAR_allow_ssh_cidr:-}" ] && info "SSH CIDR: $(yellow "$TF_VAR_allow_ssh_cidr")"
+  echo "$(cyan "════════════════════════════════════════════════════════════")"
+  echo "$(cyan "                ☁️  CNAPP BREACH SIMULATION LAB ☁️               ")"
+  echo "$(cyan "                      ctxcloud-testing v1.0                     ")"
+  echo "$(cyan "════════════════════════════════════════════════════════════")"
+  echo
+  info "$(bold "Lab Environment:") AWS CNAPP security testing scenarios"
+  info "$(bold "Narrative:") Progressive 5-Act breach simulation chain"
+  info "$(bold "Purpose:") Validate detections, train incident response, test CNAPP tools"
+  echo
   
-  PS3="$(blue '▶️  Choose a scenario: ')"
+  # Configuration display
+  local owner_display="${TF_VAR_owner:-aleghari}"
+  if [ -z "$owner_display" ]; then owner_display="aleghari"; fi
+  local region_display="${TF_VAR_region:-us-east-1}"
+  if [ -z "$region_display" ]; then region_display="us-east-1"; fi
+  
+  info "$(bold "Configuration:")"
+  info "  • Owner: $(yellow "$owner_display")"
+  info "  • Region: $(yellow "$region_display")"
+  [ -n "${TF_VAR_allow_ssh_cidr:-}" ] && info "  • SSH CIDR: $(yellow "$TF_VAR_allow_ssh_cidr")" || info "  • SSH CIDR: $(yellow "Will be configured per scenario")"
+  echo
+  
+  show_scenario_descriptions
+  
+  PS3="$(blue "▶️  Choose a scenario (1-${#SCENARIOS[@]}) or Exit ($((${#SCENARIOS[@]} + 1))): ")"
   select SCEN in "${SCENARIOS[@]}" "Exit"; do
     if [ "$REPLY" -eq $(( ${#SCENARIOS[@]} + 1 )) ] || [ "$SCEN" = "Exit" ]; then
       status "Goodbye!"
@@ -247,13 +404,85 @@ interactive_menu() {
 
     banner "Selected: $SCEN"
     PS3="$(blue "Choose action for $(cyan "$SCEN"): ")"
+    echo
+    banner "Selected: $SCEN"
+    
+    # Show scenario-specific information
+    case "$SCEN" in
+      "iam-user-risk")
+        info "$(bold "Act I:") Identity Compromise - IAM User Risk Baseline"
+        info "Creates IAM user with multiple access keys, no MFA, and overly broad permissions"
+        ;;
+      "dspm-data-generator")
+        info "$(bold "Act II:") Sensitive Data Creation - DSPM Data Generator"
+        info "Generates synthetic sensitive data (PII, PCI, PHI, secrets) for testing"
+        ;;
+      "linux-misconfig-web")
+        info "$(bold "Act III:") Infrastructure Misconfiguration - Linux Web Server"
+        info "Deploys misconfigured Linux EC2 with public access and security gaps"
+        ;;
+      "windows-vuln-iis")
+        info "$(bold "Act IV:") Infrastructure Misconfiguration - Windows IIS Server"
+        info "Deploys vulnerable Windows Server with IIS and multiple misconfigurations"
+        ;;
+      "docker-container-host")
+        info "$(bold "Act V:") Container & Host Exploitation - Risky Docker Workload"
+        info "Deploys containerized workload with dangerous host access and networking"
+        ;;
+    esac
+    echo
+    
+    info "$(bold "Available Actions:")"
+    echo "  🚀 Deploy   - Create and configure the scenario infrastructure"
+    echo "  🗑️  Teardown - Destroy all resources for this scenario"
+    echo "  📄 View Info - Read detailed scenario documentation"
+    echo "  ⬅️  Back     - Return to scenario selection"
+    echo
+    
+    PS3="$(blue "Choose action for $(cyan "$SCEN"): ")"
     select ACTION in "🚀 Deploy" "🗑️ Teardown" "📄 View Info" "⬅️  Back"; do
       case "$ACTION" in
-        "🚀 Deploy") run_deploy "$SCEN"; break ;;
-        "🗑️ Teardown") run_teardown "$SCEN"; break ;;
-        "📄 View Info") view_info "$SCEN" ;;
-        "⬅️  Back") echo; break ;;
-        *) warn "Invalid option" ;;
+        "🚀 Deploy")
+          echo
+          info "$(bold "Preparing to deploy $(cyan "$SCEN")...")"
+          info "This will create AWS resources that may incur costs."
+          run_deploy "$SCEN"
+          echo
+          status "$(bold "Deployment Complete!") ✨"
+          info "$(bold "Next Steps:")"
+          info "  • Review the deployment outputs above"
+          info "  • Check scenario README for validation commands"
+          info "  • Use your CNAPP tools to detect the misconfigurations"
+          info "  • Run teardown when finished to clean up resources"
+          echo
+          warn "Press Enter to continue..."
+          read -r
+          break
+          ;;
+        "🗑️ Teardown")
+          echo
+          warn "$(bold "⚠️  Preparing to teardown $(cyan "$SCEN")...")"
+          warn "This will destroy all AWS resources for this scenario."
+          run_teardown "$SCEN"
+          echo
+          status "$(bold "Teardown Complete!") 🧹"
+          echo
+          info "Press Enter to continue..."
+          read -r
+          break
+          ;;
+        "📄 View Info")
+          view_info "$SCEN"
+          echo
+          info "Press Enter to continue..."
+          read -r
+          ;;
+        "⬅️  Back")
+          echo
+          show_scenario_descriptions
+          break
+          ;;
+        *) warn "Invalid option. Please select 1-4." ;;
       esac
     done
   done

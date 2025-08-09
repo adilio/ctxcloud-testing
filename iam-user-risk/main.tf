@@ -38,7 +38,7 @@ resource "aws_iam_user_policy" "broad_policy" {
 
 # (Optional) Weak account password policy for demo (allows short passwords, no character requirements)
 resource "aws_iam_account_password_policy" "weak_policy" {
-  minimum_password_length        = 4
+  minimum_password_length        = 6
   require_lowercase_characters   = false
   require_uppercase_characters   = false
   require_numbers                = false

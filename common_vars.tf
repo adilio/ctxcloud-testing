@@ -8,14 +8,14 @@
 
 variable "owner" {
   description = "Owner tag applied to all resources"
-  type        = string
   default     = "aleghari"
+  type        = string
 }
 
 variable "aws_region" {
   description = "AWS region where resources are created"
-  type        = string
   default     = "us-east-1"
+  type        = string
 }
 
 variable "lab_scenario" {
