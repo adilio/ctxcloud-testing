@@ -1,0 +1,100 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.region
+}
+
+# Lookup oldest Ubuntu 20.04 AMI in selected region
+data "aws_ami_ids" "ubuntu" {
+  owners = ["099720109477"] # Canonical
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+  }
+}
+
+data "aws_ami" "oldest" {
+  most_recent = false
+  owners      = ["099720109477"]
+  filter {
+    name   = "image-id"
+    values = [sort(data.aws_ami_ids.ubuntu.ids)[length(data.aws_ami_ids.ubuntu.ids)-1]]
+  }
+}
+
+resource "aws_security_group" "web_sg" {
+  name        = "${var.scenario}-sg"
+  description = "Security group for ${var.scenario}"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description = "Allow SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.allow_ssh_cidr]
+  }
+
+  ingress {
+    description = "Allow HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [var.allow_http_cidr]
+  }
+
+  ingress {
+    description = "Allow HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.allow_http_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    owner    = var.owner
+    scenario = var.scenario
+  }
+}
+
+data "aws_vpc" "default" {
+  default = true
+}
+
+resource "aws_instance" "linux_web" {
+  ami                         = data.aws_ami.oldest.id
+  instance_type               = "t3.micro"
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.web_sg.id]
+  key_name                    = var.key_name
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "optional" # Enables IMDSv1
+  }
+
+  root_block_device {
+    encrypted = false
+  }
+
+  user_data = file("${path.module}/user_data.sh")
+
+  tags = {
+    owner    = var.owner
+    scenario = var.scenario
+  }
+}
