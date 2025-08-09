@@ -24,7 +24,7 @@ It deploys an **Ubuntu EC2 instance** running Docker with a deliberately risky c
 ## 🚀 Deployment
 
 ```bash
-cd code/docker-container-host
+cd ../docker-container-host
 ./deploy.sh
 ```
 
@@ -50,7 +50,7 @@ cd code/docker-container-host
 
 ## 🧹 Teardown
 ```bash
-cd code/docker-container-host
+cd ../docker-container-host
 ./teardown.sh
 ```
 

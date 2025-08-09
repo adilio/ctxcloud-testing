@@ -26,7 +26,7 @@ Each act builds upon the last, simulating an attacker moving laterally through I
 
 ## 📦 Repository Structure
 ```
-code/
+./
 ├── cleanup-all.sh            # Destroys all scenarios
 ├── common_vars.tf            # Shared Terraform variables across scenarios
 ├── docker-container-host/    # Act V — CWPP misconfiguration scenario
@@ -117,7 +117,7 @@ Combine multiple in sequence to simulate the full narrative.
 
 ### 2️⃣ Menu-Driven Usage
 ```bash
-cd code
+cd .
 ./menu.sh
 ```
 Interactive **TUI** will:
@@ -152,7 +152,7 @@ From the root:
 ```
 From a scenario:
 ```bash
-cd code/<scenario>
+cd <scenario>
 ./teardown.sh
 ```
 
