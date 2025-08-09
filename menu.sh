@@ -36,10 +36,12 @@ banner() {
 status() { green; echo "✅ $1"; r; }
 warn() { yellow; echo "⚠️  $1"; r; }
 error() {
-  red; echo "❌ $1"; r;
+  local msg="$1"
+  local scenario_path="${2:-}"
+  red; echo "❌ $msg"; r;
   echo
   info "💡 Troubleshooting Tips:"
-  case "$1" in
+  case "$msg" in
     *"Terraform not installed"*)
       info "  • Download from: https://developer.hashicorp.com/terraform/downloads"
       info "  • On macOS: brew install terraform"
@@ -57,8 +59,10 @@ error() {
       info "  • Check region availability: aws ec2 describe-regions"
       ;;
     *"No executable teardown.sh"*)
-      info "  • Check if the file exists: ls -la $2/teardown.sh"
-      info "  • Make executable: chmod +x $2/teardown.sh"
+      if [ -n "$scenario_path" ]; then
+        info "  • Check if the file exists: ls -la \"$scenario_path\"/teardown.sh"
+        info "  • Make executable: chmod +x \"$scenario_path\"/teardown.sh"
+      fi
       info "  • Or use the .sh permissions prompt at startup"
       ;;
     *)
@@ -307,50 +311,44 @@ show_scenario_descriptions() {
     local desc="Description not available"
     local purpose="Purpose not specified"
     local duration="~5-10 min"
-    local cost="$0.50-2.00/hour"
     
     case "$scenario" in
       "iam-user-risk")
         desc="IAM User Risk Baseline (CIEM)"
         purpose="Create IAM user with risky configurations: no MFA, multiple access keys, overly broad permissions"
         duration="~2-3 min"
-        cost="~$0.10/hour"
         ;;
       "dspm-data-generator")
         desc="Sensitive Data Generation (DSPM)"
         purpose="Generate synthetic PII, PCI, PHI, and secrets data for data security testing"
         duration="~3-5 min"
-        cost="~$0.50/hour"
         ;;
       "linux-misconfig-web")
         desc="Linux Web Workload Misconfigurations (CSPM/CDR)"
         purpose="Deploy misconfigured Linux EC2: public access, IMDSv1, unencrypted EBS, outdated OS"
         duration="~5-7 min"
-        cost="~$1.00/hour"
         ;;
       "windows-vuln-iis")
         desc="Windows IIS Server Vulnerabilities (CSPM/CDR)"
         purpose="Deploy Windows Server with IIS: public RDP, IMDSv1, unencrypted EBS, web vulnerabilities"
         duration="~8-12 min"
-        cost="~$2.00/hour"
         ;;
       "docker-container-host")
         desc="Container & Host Exploitation (CWPP/CSPM)"
         purpose="Deploy risky containerized workload: root container, host mounts, network exposure"
         duration="~6-8 min"
-        cost="~$1.50/hour"
         ;;
     esac
     
-    printf "$(cyan "$i.")") $(yellow "$scenario")\n"
+    printf "$(cyan "$i.") $(yellow "$scenario")\n"
     printf "   $(green "→") $desc\n"
     printf "   $(blue "Purpose:") $purpose\n"
-    printf "   $(magenta "Duration:") $duration  $(magenta "Est. Cost:") $cost\n"
+    printf "   $(magenta "Duration:") $duration\n"
     echo
     ((i++))
   done
   
-  printf "$(cyan "$i.")") $(red "Exit")\n"
+  printf "$(cyan "$i.") $(red "Exit")\n"
   echo
   warn "⚠️  These scenarios deploy intentionally vulnerable infrastructure. Use only in non-production AWS accounts."
   echo
@@ -402,8 +400,6 @@ interactive_menu() {
     fi
     [ -n "${SCEN:-}" ] || { warn "Invalid selection"; continue; }
 
-    banner "Selected: $SCEN"
-    PS3="$(blue "Choose action for $(cyan "$SCEN"): ")"
     echo
     banner "Selected: $SCEN"
     
@@ -525,7 +521,7 @@ main() {
           SESSION_SSH_CIDR="$val"
           status "SSH CIDR set to: $(yellow "$val")"
           ;;
-        *) error "Unknown set key: $key" ;;
+        *) error "Unknown set key: $key" "" ;;
       esac
       ;;
     "" ) run_checks; interactive_menu ;;
