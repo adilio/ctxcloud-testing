@@ -44,11 +44,30 @@ resource "aws_security_group" "sg" {
   }
 }
 
+resource "aws_vpc" "scenario_vpc" {
+  cidr_block = "10.0.0.0/16"
+  tags = {
+    owner    = var.owner
+    scenario = var.scenario
+  }
+}
+
+resource "aws_subnet" "scenario_subnet" {
+  vpc_id                  = aws_vpc.scenario_vpc.id
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+  tags = {
+    owner    = var.owner
+    scenario = var.scenario
+  }
+}
+
 data "aws_vpc" "default" {
-  default = true
+  id = aws_vpc.scenario_vpc.id
 }
 
 resource "aws_instance" "this" {
+  subnet_id = aws_subnet.scenario_subnet.id
   ami                         = data.aws_ami.oldest_windows.id
   instance_type               = "t2.micro"
   vpc_security_group_ids      = [aws_security_group.sg.id]

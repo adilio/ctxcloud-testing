@@ -37,3 +37,10 @@ variable "dummy_api_key" {
   type        = string
   default     = "sk_live_51H6kP7kYbQe9Lm3e8xT7wzAq5b6Vn"
 }
+
+variable "aws_region" {
+  description = "AWS region where resources are created"
+  type        = string
+  default     = "us-east-1"
+}
+

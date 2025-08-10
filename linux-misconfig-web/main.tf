@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "aws" {
-  region = var.region
+  region = var.aws_region
 }
 
 # Lookup oldest Ubuntu 20.04 AMI in selected region
@@ -57,7 +57,8 @@ resource "aws_security_group" "web_sg" {
     protocol    = "tcp"
     cidr_blocks = [var.allow_http_cidr]
   }
-
+  
+  
   egress {
     from_port   = 0
     to_port     = 0
@@ -71,8 +72,28 @@ resource "aws_security_group" "web_sg" {
   }
 }
 
+resource "aws_vpc" "scenario_vpc" {
+  cidr_block = "10.0.0.0/16"
+
+  tags = {
+    owner    = var.owner
+    scenario = var.scenario
+  }
+}
+
 data "aws_vpc" "default" {
-  default = true
+  id = aws_vpc.scenario_vpc.id
+}
+
+resource "aws_subnet" "scenario_subnet" {
+  vpc_id                  = aws_vpc.scenario_vpc.id
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+
+  tags = {
+    owner    = var.owner
+    scenario = var.scenario
+  }
 }
 
 resource "aws_instance" "linux_web" {
@@ -80,8 +101,9 @@ resource "aws_instance" "linux_web" {
   instance_type               = "t3.micro"
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
-  key_name                    = var.key_name
 
+  key_name                    = var.key_name
+  subnet_id                   = aws_subnet.scenario_subnet.id
   metadata_options {
     http_endpoint = "enabled"
     http_tokens   = "optional" # Enables IMDSv1

@@ -21,3 +21,14 @@ variable "allow_rdp_cidr" {
   type        = string
   default     = "0.0.0.0/0"
 }
+variable "owner" {
+  description = "Owner tag"
+  type        = string
+  default     = "aleghari"
+}
+
+variable "scenario" {
+  description = "Scenario name"
+  type        = string
+  default     = "windows-vuln-iis"
+}
