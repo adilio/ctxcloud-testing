@@ -152,3 +152,19 @@ tags = {
 - Wrong region? Use `./menu.sh --set region <region>`
 - SSH blocked? Accept detected `/32` in TUI
 - Logs: `./logs/` contains full action output
+
+# 📐 Architecture — Updated for Deployment Flow Changes
+
+## 🛠️ Deployment Behavior
+- **Dedicated VPC + Subnet Creation:** All EC2-based scenarios now provision their own isolated VPC and public subnet, removing reliance on AWS default VPCs.
+- **EC2 Subnet Association:** EC2 resources explicitly launch in the scenario-created subnet to ensure compatibility even in accounts without a default VPC.
+- **Scenario State Preservation:** `.terraform/` and `terraform.tfstate` are preserved between runs, avoiding unintended destroy/redeploy cycles.
+- **Dynamic SSH CIDR Prompting:** Non-EC2 scenarios (e.g., IAM-only, DSPM data creation) skip the SSH CIDR prompt for a cleaner workflow.
+- **Public IP/DNS Output Clarity:** When a scenario has no EC2 instance, outputs display "Not applicable" instead of `N/A` to reduce confusion.
+
+## 📂 Structural Adjustments
+- Removed all references to `blueprint.md` from public documentation.
+- Added executable `deploy.sh` to `dspm-data-generator` for proper detection in `menu.sh` scenario ordering.
+
+## ⚠️ Security Notice
+These changes keep scenarios intentionally insecure—for CNAPP detection and training—while improving stability, clarity, and usability.

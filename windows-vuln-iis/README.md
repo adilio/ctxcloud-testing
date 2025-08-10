@@ -13,6 +13,7 @@ In the **breach simulation narrative**, this is **Act IV**:
 ---
 
 ## ⚠️ Misconfigurations
+- Dedicated VPC and subnet created during deployment — no reliance on AWS default VPC.
 - Public RDP access on port 3389 (unless restricted via variable).
 - **Unencrypted root volume** (EBS).
 - **IMDSv1** enabled (`http_tokens = "optional"`).

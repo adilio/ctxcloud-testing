@@ -12,6 +12,7 @@ In the **breach simulation narrative**, this is **Act III**:
 ---
 
 ## ⚠️ Misconfigurations
+- Dedicated VPC and subnet created during deployment — no reliance on AWS default VPC.
 - Security group open to the world on HTTP (80) and SSH (22) — unless restricted via TUI.
 - **Unencrypted root EBS** volume.
 - **IMDSv1** enabled (`http_tokens = "optional"`).

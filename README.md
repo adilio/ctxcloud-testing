@@ -37,7 +37,7 @@ Each act builds upon the last, simulating an attacker moving laterally through I
 ├── linux-misconfig-web/      # Act III — Linux workload misconfigurations
 ├── menu.sh                   # Interactive TUI for scenario control
 ├── windows-vuln-iis/         # Act IV — Windows workload misconfigurations
-└── blueprint.md              # Lab build rules & developer guidelines
+└── (removed)                 # Removed blueprint.md reference
 ```
 
 ---
@@ -104,7 +104,7 @@ Combine multiple in sequence to simulate the full narrative.
 |-------|----------------|----------|
 | `AWS credentials invalid or missing` | AWS CLI is not configured | Run `aws configure` and reauth. |
 | `Terraform not installed` | Missing Terraform binary | Install from developer.hashicorp.com/terraform/downloads |
-| SSH connection refused | SG/CIDR misconfig | Check `allow_ssh_cidr` var or menu prompt settings |
+| SSH connection refused | SG/CIDR misconfig | Check menu prompt settings (if applicable); note that scenarios without EC2 skip SSH CIDR prompts |
 | Validation command returns `N/A` | Output not defined for scenario | Only some scenarios define DNS/IP outputs; check README for alternatives |
 
 ## 🚀 Quick Start

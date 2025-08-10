@@ -14,6 +14,7 @@ It deploys an **Ubuntu EC2 instance** running Docker with a deliberately risky c
 ---
 
 ## 🛠️ Misconfigurations in this Scenario
+- Dedicated VPC and subnet created during deployment — no reliance on AWS default VPC.
 - **CWPP**: Container runs as root, risky volume mounts, host networking.
 - **CSPM**: Public security group for SSH and app port.
 - **DSPM link**: Sensitivity token file stored on host, potentially accessible from container or app.
