@@ -36,8 +36,7 @@ Each act builds upon the last, simulating an attacker moving laterally through I
 ├── lib/                      # Shared preflight checks and helpers
 ├── linux-misconfig-web/      # Act III — Linux workload misconfigurations
 ├── menu.sh                   # Interactive TUI for scenario control
-├── windows-vuln-iis/         # Act IV — Windows workload misconfigurations
-└──
+└── windows-vuln-iis/         # Act IV — Windows workload misconfigurations
 ```
 
 ---
