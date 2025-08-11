@@ -28,7 +28,8 @@ resource "aws_security_group" "sg" {
     from_port   = 3389
     to_port     = 3389
     protocol    = "tcp"
-    cidr_blocks = [var.allow_rdp_cidr]
+    cidr_blocks      = [var.allow_rdp_cidr]
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   egress {
@@ -67,9 +68,10 @@ data "aws_vpc" "default" {
 }
 
 resource "aws_instance" "this" {
-  subnet_id = aws_subnet.scenario_subnet.id
+  subnet_id                   = aws_subnet.scenario_subnet.id
+  key_name                    = var.key_name
   ami                         = data.aws_ami.oldest_windows.id
-  instance_type               = "t2.micro"
+  instance_type               = "t2.medium"
   vpc_security_group_ids      = [aws_security_group.sg.id]
   associate_public_ip_address = true
 
@@ -84,6 +86,7 @@ resource "aws_instance" "this" {
   user_data = file("${path.module}/user_data.ps1")
 
   tags = {
+    Name     = "${var.owner}-${var.lab_scenario}"
     owner    = var.resource_owner
     scenario = var.lab_scenario
   }
@@ -95,4 +98,27 @@ output "public_ip" {
 
 output "public_dns" {
   value = aws_instance.this.public_dns
+}
+# Add Internet Gateway and public route for RDP access
+resource "aws_internet_gateway" "this" {
+  vpc_id = aws_vpc.scenario_vpc.id
+  tags = {
+    Name = "${var.owner}-${var.scenario}-igw"
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.scenario_vpc.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.this.id
+  }
+  tags = {
+    Name = "${var.owner}-${var.scenario}-public-rt"
+  }
+}
+
+resource "aws_route_table_association" "public_assoc" {
+  subnet_id      = aws_subnet.scenario_subnet.id
+  route_table_id = aws_route_table.public.id
 }

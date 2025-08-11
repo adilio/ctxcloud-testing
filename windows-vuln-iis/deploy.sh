@@ -20,7 +20,7 @@ echo -e "${BLUE}🚀 Deploying Windows Vuln IIS Scenario...${NC}"
 
 terraform init
 terraform validate
-terraform apply -auto-approve
+terraform apply -auto-approve -var="owner=$OWNER"
 
 echo -e "${GREEN}✅ Deploy complete!${NC}"
 echo -e "----------------------------------------"

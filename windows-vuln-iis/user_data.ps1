@@ -21,3 +21,5 @@ $canaryPath = "C:\inetpub\wwwroot\canary.txt"
 $dspmLeakPath = "C:\inetpub\wwwroot\dspm_leak.csv"
 "Simulated DSPM leaked data from Act II" | Out-File -FilePath $dspmLeakPath -Encoding utf8
 </powershell>
+# Set the computer hostname to match the scenario name
+Rename-Computer -NewName "${OWNER}-${scenario}" -Force -Restart

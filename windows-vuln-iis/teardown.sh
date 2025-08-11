@@ -15,6 +15,12 @@ NC="\033[0m"
 
 echo -e "${BLUE}🗑️  Tearing down Windows Vuln IIS Scenario...${NC}"
 
-terraform destroy -auto-approve
-
-echo -e "${GREEN}✅ Teardown complete!${NC}"
+if terraform destroy -auto-approve; then
+  # Clean up Terraform state and lock files
+  rm -f "$(dirname "$0")/terraform.tfstate" "$(dirname "$0")/terraform.tfstate.backup" "$(dirname "$0")/.terraform.lock.hcl"
+  rm -rf "$(dirname "$0")/.terraform"
+  echo -e "${GREEN}✅ Teardown complete!${NC}"
+else
+  echo -e "${RED}❌ Teardown failed, Terraform files preserved for troubleshooting.${NC}"
+  exit 1
+fi

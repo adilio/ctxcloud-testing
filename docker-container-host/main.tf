@@ -32,7 +32,8 @@ resource "aws_security_group" "docker_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.allow_ssh_cidr]
+    cidr_blocks      = [var.allow_ssh_cidr]
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   ingress {
@@ -82,7 +83,7 @@ data "aws_ami" "ubuntu" {
 
 resource "aws_instance" "docker_host" {
   ami                         = data.aws_ami.ubuntu.id
-  instance_type               = "t3.micro"
+  instance_type               = "t3.medium"
   key_name                    = aws_key_pair.docker_key.key_name
   vpc_security_group_ids      = [aws_security_group.docker_sg.id]
   subnet_id                   = element(data.aws_subnet_ids.default.ids, 0)
@@ -101,6 +102,7 @@ resource "aws_instance" "docker_host" {
   }
 
   tags = {
+    Name     = "${var.owner}-${var.lab_scenario}"
     Owner    = var.owner
     Scenario = var.lab_scenario
   }

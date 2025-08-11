@@ -5,6 +5,7 @@ provider "aws" {
 resource "aws_iam_user" "this" {
   name = var.iam_user_name
   tags = {
+    Name     = "${var.owner}-${var.scenario}"
     owner    = var.owner
     scenario = var.scenario
   }

@@ -146,7 +146,7 @@ prompt_for_ssh_cidr() {
   local detected="" choice="" custom=""
   if detected="$(detect_public_ip)"; then
     echo "Detected public IP: $detected"
-    echo "Use $detected/32 for SSH? Press Enter or [Y] to accept / [N]o / [C]ustom / [S]kip"
+    echo "Use $detected/32 for SSH? Press Enter (default: 0.0.0.0/0) or [Y] to accept detected / [N]o / [C]ustom / [S]kip"
     read -r -p "Choice: " choice
   else
     warn "Could not detect your public IP automatically."
@@ -157,7 +157,12 @@ prompt_for_ssh_cidr() {
   case "${choice,,}" in
     ""|"y"|"yes")
       if [ -n "$detected" ]; then
-        SESSION_SSH_CIDR="${detected}/32"
+        # Default to open SSH if user just presses Enter (empty input)
+        if [ -z "$choice" ]; then
+          SESSION_SSH_CIDR="0.0.0.0/0"
+        else
+          SESSION_SSH_CIDR="${detected}/32"
+        fi
         export TF_VAR_allow_ssh_cidr="$SESSION_SSH_CIDR"
       else
         SESSION_SSH_CIDR=""

@@ -39,7 +39,8 @@ resource "aws_security_group" "web_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.allow_ssh_cidr]
+    cidr_blocks      = [var.allow_ssh_cidr]
+    ipv6_cidr_blocks = [var.allow_ssh_cidr_ipv6]
   }
 
   ingress {
@@ -81,6 +82,31 @@ resource "aws_vpc" "scenario_vpc" {
   }
 }
 
+resource "aws_internet_gateway" "scenario_igw" {
+  vpc_id = aws_vpc.scenario_vpc.id
+  tags = {
+    owner    = var.owner
+    scenario = var.scenario
+  }
+}
+
+resource "aws_route_table" "scenario_rt" {
+  vpc_id = aws_vpc.scenario_vpc.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.scenario_igw.id
+  }
+  tags = {
+    owner    = var.owner
+    scenario = var.scenario
+  }
+}
+
+resource "aws_route_table_association" "scenario_rta" {
+  subnet_id      = aws_subnet.scenario_subnet.id
+  route_table_id = aws_route_table.scenario_rt.id
+}
+
 data "aws_vpc" "default" {
   id = aws_vpc.scenario_vpc.id
 }
@@ -98,7 +124,7 @@ resource "aws_subnet" "scenario_subnet" {
 
 resource "aws_instance" "linux_web" {
   ami                         = data.aws_ami.oldest.id
-  instance_type               = "t3.micro"
+  instance_type               = "t3.medium"
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
 
@@ -113,9 +139,16 @@ resource "aws_instance" "linux_web" {
     encrypted = false
   }
 
-  user_data = file("${path.module}/user_data.sh")
+  user_data = templatefile("${path.module}/user_data.sh", {
+    SCENARIO_NAME = var.scenario
+    DUMMY_API_KEY = var.dummy_api_key
+    STRIPE_KEY    = var.stripe_key
+    AWS_KEY       = var.aws_key
+    GITHUB_TOKEN  = var.github_token
+  })
 
   tags = {
+    Name     = "${var.owner}-${var.scenario}"
     owner    = var.owner
     scenario = var.scenario
   }

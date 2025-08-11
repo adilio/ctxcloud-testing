@@ -24,7 +24,7 @@ echo -e "📐  Planning infrastructure..."
 terraform plan -out=tfplan -var="lab_scenario=$SCENARIO_NAME"
 
 echo -e "🚢  Applying infrastructure..."
-terraform apply -auto-approve tfplan
+terraform apply -auto-approve -var="owner=$OWNER" tfplan
 
 PUBLIC_IP=$(terraform output -raw public_ip)
 APP_URL=$(terraform output -raw app_url)
