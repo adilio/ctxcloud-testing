@@ -1,6 +1,6 @@
 #!/bin/bash
 # Set the system hostname to match the scenario name
-sudo hostnamectl set-hostname "${SCENARIO_NAME:-linux-misconfig-web}"
+sudo hostnamectl set-hostname "${SCENARIO_NAME}"
 
 # Disable automatic updates
 sudo systemctl stop apt-daily.timer

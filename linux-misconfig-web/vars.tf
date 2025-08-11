@@ -17,8 +17,33 @@ variable "scenario" {
 }
 
 variable "allow_ssh_cidr" {
-  description = "CIDR block for SSH access"
+  description = "CIDR block for SSH access (IPv4)"
   type        = string
+  default     = "0.0.0.0/0"
+}
+
+variable "allow_ssh_cidr_ipv6" {
+  description = "CIDR block for SSH access (IPv6)"
+  type        = string
+  default     = "::/0"
+}
+
+variable "stripe_key" {
+  description = "Fake Stripe key for CSPM trigger"
+  type        = string
+  default     = "sk_live_placeholder"
+}
+
+variable "aws_key" {
+  description = "Fake AWS Access Key ID for CSPM trigger"
+  type        = string
+  default     = "AKIA_PLACEHOLDER"
+}
+
+variable "github_token" {
+  description = "Fake GitHub token for CSPM trigger"
+  type        = string
+  default     = "ghp_placeholder"
 }
 
 variable "allow_http_cidr" {
