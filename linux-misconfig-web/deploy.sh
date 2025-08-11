@@ -14,13 +14,14 @@ warn() { yellow; echo "⚠️  $1"; resetc; }
 error() { red; echo "❌ $1"; resetc; exit 1; }
 info() { cyan; echo "ℹ️  $1"; resetc; }
 
-# Auto-generate dummy_api_key if unset or default
-DEFAULT_KEY="sk_live_51H6kP7kYbQe9Lm3e8xT7wzAq5b6Vn"
-if [[ -z "${TF_VAR_dummy_api_key:-}" || "${TF_VAR_dummy_api_key}" == "$DEFAULT_KEY" ]]; then
-  GEN_KEY="ghp_$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 36)"
-  export TF_VAR_dummy_api_key="$GEN_KEY"
-  warn "Generated random dummy API key for this deployment."
-fi
+# Auto-generate multiple high-risk looking keys for CSPM trigger testing
+export TF_VAR_stripe_key="sk_live_$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
+export TF_VAR_aws_key="AKIA$(tr -dc 'A-Z0-9' </dev/urandom | head -c 16)"
+export TF_VAR_github_token="ghp_$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 36)"
+export TF_VAR_dummy_api_key="$TF_VAR_stripe_key"
+warn "Generated fake Stripe key for CSPM detection: $TF_VAR_stripe_key"
+warn "Generated fake AWS Access Key for CSPM detection: $TF_VAR_aws_key"
+warn "Generated fake GitHub token for CSPM detection: $TF_VAR_github_token"
 
 info "🚀 Starting deployment for linux-misconfig-web..."
 terraform -chdir="$SCRIPT_DIR" init
